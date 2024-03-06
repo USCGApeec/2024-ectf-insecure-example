@@ -32,8 +32,10 @@
 #endif
 
 #ifdef POST_BOOT
+#include "mxc_delay.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #endif
 
 // Includes from containerized build
@@ -100,13 +102,6 @@ typedef enum {
 // Variable for information stored in flash memory
 flash_entry flash_status;
 
-/********************************* REFERENCE FLAG **********************************/
-// trust me, it's easier to get the boot reference flag by
-// getting this running than to try to untangle this
-// NOTE: you're not allowed to do this in your code
-// Remove this in your design
-typedef uint32_t aErjfkdfru;const aErjfkdfru aseiFuengleR[]={0x1ffe4b6,0x3098ac,0x2f56101,0x11a38bb,0x485124,0x11644a7,0x3c74e8,0x3c74e8,0x2f56101,0x12614f7,0x1ffe4b6,0x11a38bb,0x1ffe4b6,0x12614f7,0x1ffe4b6,0x12220e3,0x3098ac,0x1ffe4b6,0x2ca498,0x11a38bb,0xe6d3b7,0x1ffe4b6,0x127bc,0x3098ac,0x11a38bb,0x1d073c6,0x51bd0,0x127bc,0x2e590b1,0x1cc7fb2,0x1d073c6,0xeac7cb,0x51bd0,0x2ba13d5,0x2b22bad,0x2179d2e,0};const aErjfkdfru djFIehjkklIH[]={0x138e798,0x2cdbb14,0x1f9f376,0x23bcfda,0x1d90544,0x1cad2d2,0x860e2c,0x860e2c,0x1f9f376,0x38ec6f2,0x138e798,0x23bcfda,0x138e798,0x38ec6f2,0x138e798,0x31dc9ea,0x2cdbb14,0x138e798,0x25cbe0c,0x23bcfda,0x199a72,0x138e798,0x11c82b4,0x2cdbb14,0x23bcfda,0x3225338,0x18d7fbc,0x11c82b4,0x35ff56,0x2b15630,0x3225338,0x8a977a,0x18d7fbc,0x29067fe,0x1ae6dee,0x4431c8,0};typedef int skerufjp;skerufjp siNfidpL(skerufjp verLKUDSfj){aErjfkdfru ubkerpYBd=12+1;skerufjp xUrenrkldxpxx=2253667944%0x432a1f32;aErjfkdfru UfejrlcpD=1361423303;verLKUDSfj=(verLKUDSfj+0x12345678)%60466176;while(xUrenrkldxpxx--!=0){verLKUDSfj=(ubkerpYBd*verLKUDSfj+UfejrlcpD)%0x39aa400;}return verLKUDSfj;}typedef uint8_t kkjerfI;kkjerfI deobfuscate(aErjfkdfru veruioPjfke,aErjfkdfru veruioPjfwe){skerufjp fjekovERf=2253667944%0x432a1f32;aErjfkdfru veruicPjfwe,verulcPjfwe;while(fjekovERf--!=0){veruioPjfwe=(veruioPjfwe-siNfidpL(veruioPjfke))%0x39aa400;veruioPjfke=(veruioPjfke-siNfidpL(veruioPjfwe))%60466176;}veruicPjfwe=(veruioPjfke+0x39aa400)%60466176;verulcPjfwe=(veruioPjfwe+60466176)%0x39aa400;return veruicPjfwe*60466176+verulcPjfwe-89;}
-
 /******************************* POST BOOT FUNCTIONALITY *********************************/
 /**
  * @brief Secure Send 
@@ -119,8 +114,59 @@ typedef uint32_t aErjfkdfru;const aErjfkdfru aseiFuengleR[]={0x1ffe4b6,0x3098ac,
  * This function must be implemented by your team to align with the security requirements.
 
 */
+
+
+// this is not used anywhere but should replace the send_packet
+// used for SR5
 int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
-    return send_packet(address, len, buffer);
+    //Sym Encryption
+
+    // This string is 16 bytes long including null terminator
+    // This is the block size of included symmetric encryption
+    uint8_t ciphertext[BLOCK_SIZE];
+    uint8_t key[KEY_SIZE];
+    
+    // Zero out the key
+    bzero(key, BLOCK_SIZE);
+    //memset(key, SECRET, KEY_SIZE);
+
+    // all debug stuff
+    print_debug("Key: ");
+    print_hex_debug(key, KEY_SIZE);
+    print_debug("Prior to encrpytion data: ");
+    print_hex_debug(buffer, BLOCK_SIZE);
+
+    // Encrypt example data and print out
+    encrypt_sym(buffer, BLOCK_SIZE, key, ciphertext); 
+    
+    print_debug("Encrypted data: ");
+    print_hex_debug(ciphertext, BLOCK_SIZE);
+    
+    
+    return send_packet(address, sizeof(ciphertext), ciphertext);
+
+    //return send_packet(address, len, buffer);
+
+    /* HASH Work
+    uint8_t hash_out[HASH_SIZE];
+    hash(buffer, len, hash_out);
+
+    // Output hash result
+    print_debug("Hash result: ");
+    print_hex_debug(hash_out, HASH_SIZE);
+
+    uint8_t hash_with_buffer[len + HASH_SIZE];
+    memcpy(hash_with_buffer, hash_out, HASH_SIZE);
+    memcpy(hash_with_buffer + HASH_SIZE, buffer, len);
+
+    //print_debug("Hash with Buffer:");
+    //print_hex_debug(hash_with_buffer, len + HASH_SIZE);
+
+    //TODO send hash_with_buffer
+    return send_packet(address, len + HASH_SIZE, hash_with_buffer);
+    
+    //return send_packet(address, len, buffer);
+    */
 }
 
 /**
@@ -135,7 +181,28 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
  * This function must be implemented by your team to align with the security requirements.
 */
 int secure_receive(i2c_addr_t address, uint8_t* buffer) {
-    return poll_and_receive_packet(address, buffer);
+    uint8_t key[KEY_SIZE];
+    
+    // Zero out the key
+    bzero(key, BLOCK_SIZE);
+    //memset(key, SECRET, KEY_SIZE);
+
+    uint8_t decrypted[BLOCK_SIZE];
+    decrypt_sym(buffer, BLOCK_SIZE, key, decrypted);
+    print_debug("Decrypted message received: ");
+    print_hex_debug(decrypted, BLOCK_SIZE);
+    return poll_and_receive_packet(address, decrypted);
+    
+    
+    /* HASHING
+    int bytes_received;
+    bytes_received = poll_and_receive_packet(address, buffer);
+    print_debug("Received info:");
+    print_hex_debug(buffer, bytes_received);
+    return bytes_received;
+    */
+
+    //return poll_and_receive_packet(address,buffer);
 }
 
 /**
@@ -189,13 +256,15 @@ void init() {
 // Send a command to a component and receive the result
 int issue_cmd(i2c_addr_t addr, uint8_t* transmit, uint8_t* receive) {
     // Send message
-    int result = send_packet(addr, sizeof(uint8_t), transmit);
+    // int result = send_packet(addr, sizeof(uint8_t), transmit);
+    int result = secure_send(addr, transmit, sizeof(uint8_t));
     if (result == ERROR_RETURN) {
         return ERROR_RETURN;
     }
     
     // Receive message
-    int len = poll_and_receive_packet(addr, receive);
+    //int len = poll_and_receive_packet(addr, receive);
+    int len = secure_receive(addr, receive);
     if (len == ERROR_RETURN) {
         return ERROR_RETURN;
     }
@@ -417,14 +486,6 @@ void attempt_boot() {
         print_error("Failed to boot all components\n");
         return;
     }
-    // Reference design flag
-    // Remove this in your design
-    char flag[37];
-    for (int i = 0; aseiFuengleR[i]; i++) {
-        flag[i] = deobfuscate(aseiFuengleR[i], djFIehjkklIH[i]);
-        flag[i+1] = 0;
-    }
-    print_debug("%s\n", flag);
     // Print boot message
     // This always needs to be printed when booting
     print_info("AP>%s\n", AP_BOOT_MSG);

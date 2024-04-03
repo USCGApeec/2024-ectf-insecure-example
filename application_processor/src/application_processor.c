@@ -119,6 +119,38 @@ flash_entry flash_status;
 // this is not used anywhere but should replace the send_packet
 // used for SR5
 int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
+    uint8_t ciphertext[64];
+    uint8_t key[KEY_SIZE];
+    
+    // this should implement a key
+    bzero(key, BLOCK_SIZE);
+    
+    print_debug("AP- data to be sent: ");
+    print_hex_debug(buffer, len);
+
+    print_debug("AP- data to be sent at 64: ");
+    print_hex_debug(buffer, BLOCK_SIZE);
+    
+    encrypt_sym(buffer, BLOCK_SIZE, key, ciphertext);
+    
+    print_debug("AP- Encrypted data that is being sent: ");
+    print_hex_debug(ciphertext, BLOCK_SIZE);
+
+    uint8_t decrypted[BLOCK_SIZE];
+
+    decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
+
+    print_debug("AP send- Encrypted message decrypted with BS: ");
+    print_hex_debug(decrypted, 64);
+
+    print_debug("AP send- Encrypted message decrypted with len: ");
+    print_hex_debug(decrypted, len);
+
+
+    return send_packet(address, 64, ciphertext);
+
+    
+    /*
     //Sym Encryption
 
     // This string is 16 bytes long including null terminator
@@ -181,6 +213,24 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
  * This function must be implemented by your team to align with the security requirements.
 */
 int secure_receive(i2c_addr_t address, uint8_t* buffer) {
+    uint8_t len = poll_and_receive_packet(address, buffer);
+    
+    uint8_t key[KEY_SIZE];
+    uint8_t decrypted[BLOCK_SIZE];
+
+    bzero(key, BLOCK_SIZE);
+
+    print_debug("AP rec- Encrypted message received: ");
+    print_hex_debug(buffer, BLOCK_SIZE);
+
+    decrypt_sym(buffer, BLOCK_SIZE, key, decrypted);
+
+    print_debug("AP rec- Decrypted message received: ");
+    print_hex_debug(decrypted, len);
+
+    return len;
+
+    /*
     uint8_t key[KEY_SIZE];
     
     // Zero out the key
@@ -332,6 +382,8 @@ int validate_components() {
         validate_message* validate = (validate_message*) receive_buffer;
         // Check that the result is correct
         if (validate->component_id != flash_status.component_ids[i]) {
+            print_debug("Receive_buffer:");
+            print_hex_debug(receive_buffer, MAX_I2C_MESSAGE_LEN);
             print_error("Component ID: 0x%08x invalid\n", flash_status.component_ids[i]);
             return ERROR_RETURN;
         }

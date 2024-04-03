@@ -34,7 +34,7 @@
  *          the key to use for encryption
  * @param ciphertext A pointer to a buffer of length len where the resulting
  *          ciphertext will be written to
- *
+ *  `
  * @return 0 on success, -1 on bad length, other non-zero for other error
  */
 int encrypt_sym(uint8_t *plaintext, size_t len, uint8_t *key, uint8_t *ciphertext);

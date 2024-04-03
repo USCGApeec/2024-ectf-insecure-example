@@ -103,6 +103,17 @@ void secure_send(uint8_t* buffer, uint8_t len) {
     uint8_t ciphertext[BLOCK_SIZE];
     uint8_t key[KEY_SIZE];
     
+    // this should implement a key
+    bzero(key, BLOCK_SIZE);
+
+    encrypt_sym(buffer, BLOCK_SIZE, key, ciphertext);
+    
+    send_packet_and_ack(BLOCK_SIZE, ciphertext);
+    
+    /*
+    uint8_t ciphertext[BLOCK_SIZE];
+    uint8_t key[KEY_SIZE];
+    
     // Zero out the key
     bzero(key, BLOCK_SIZE);
     //memset(key, SECRET, KEY_SIZE);
@@ -113,6 +124,7 @@ void secure_send(uint8_t* buffer, uint8_t len) {
     send_packet_and_ack(sizeof(ciphertext), ciphertext);
 
     //send_packet_and_ack(len, buffer); 
+    */
 }
 
 /**
@@ -126,16 +138,19 @@ void secure_send(uint8_t* buffer, uint8_t len) {
  * This function must be implemented by your team to align with the security requirements.
 */
 int secure_receive(uint8_t* buffer) {
-    uint8_t key[KEY_SIZE];
+    uint8_t len = wait_and_receive_packet(buffer);
     
+    uint8_t key[KEY_SIZE];
+    uint8_t decrypted[BLOCK_SIZE];
+
     // Zero out the key
     bzero(key, BLOCK_SIZE);
-    //memset(key, SECRET, KEY_SIZE);
 
-    uint8_t decrypted[BLOCK_SIZE];
     decrypt_sym(buffer, BLOCK_SIZE, key, decrypted);
 
-    return wait_and_receive_packet(decrypted);
+    memcpy(buffer, decrypted, BLOCK_SIZE);
+
+    return len;
     
     /* HASHING
     

@@ -75,6 +75,7 @@ typedef struct {
 // Data type for receiving a validate message
 typedef struct {
     uint32_t component_id;
+    uint32_t nonce;
 } validate_message;
 
 // Data type for receiving a scan message
@@ -114,92 +115,34 @@ flash_entry flash_status;
  * This function must be implemented by your team to align with the security requirements.
 
 */
-
-
-// this is not used anywhere but should replace the send_packet
-// used for SR5
 int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
-    uint8_t ciphertext[64];
+    size_t packet_size = BLOCK_SIZE * 16;
+
     uint8_t key[KEY_SIZE];
+    bzero(key, KEY_SIZE);
+
+    if (len > MAX_PACKET_SIZE) {
+        print_debug("len too big")
+        return -1;
+    }
     
-    // this should implement a key
-    bzero(key, BLOCK_SIZE);
-    
-    print_debug("AP- data to be sent: ");
-    print_hex_debug(buffer, len);
+    uint8_t padded_buffer[packet_size];
+    uint8_t encrypted_buffer[packet_size];
 
-    print_debug("AP- data to be sent at 64: ");
-    print_hex_debug(buffer, BLOCK_SIZE);
-    
-    encrypt_sym(buffer, BLOCK_SIZE, key, ciphertext);
-    
-    print_debug("AP- Encrypted data that is being sent: ");
-    print_hex_debug(ciphertext, BLOCK_SIZE);
+    memcpy(padded_buffer, buffer, len);
 
-    uint8_t decrypted[BLOCK_SIZE];
+    // Add padding bytes with the chosen character
+    for (int i = len; i < packet_size; i++) {
+        padded_buffer[i] = '\0';
+    }
 
-    decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
+    encrypt_sym((uint8_t*)padded_buffer, packet_size, key, encrypted_buffer);
 
-    print_debug("AP send- Encrypted message decrypted with BS: ");
-    print_hex_debug(decrypted, 64);
-
-    print_debug("AP send- Encrypted message decrypted with len: ");
-    print_hex_debug(decrypted, len);
-
-
-    return send_packet(address, 64, ciphertext);
-
-    
-    /*
-    //Sym Encryption
-
-    // This string is 16 bytes long including null terminator
-    // This is the block size of included symmetric encryption
-    uint8_t ciphertext[BLOCK_SIZE];
-    uint8_t key[KEY_SIZE];
-    
-    // Zero out the key
-    bzero(key, BLOCK_SIZE);
-    //memset(key, SECRET, KEY_SIZE);
-
-    // all debug stuff
-    print_debug("Key: ");
-    print_hex_debug(key, KEY_SIZE);
-    print_debug("Prior to encrpytion data: ");
-    print_hex_debug(buffer, BLOCK_SIZE);
-
-    // Encrypt example data and print out
-    encrypt_sym(buffer, BLOCK_SIZE, key, ciphertext); 
-    
-    print_debug("Encrypted data: ");
-    print_hex_debug(ciphertext, BLOCK_SIZE);
-    
-    
-    return send_packet(address, sizeof(ciphertext), ciphertext);
-
-    //return send_packet(address, len, buffer);
-
-    /* HASH Work
-    uint8_t hash_out[HASH_SIZE];
-    hash(buffer, len, hash_out);
-
-    // Output hash result
-    print_debug("Hash result: ");
-    print_hex_debug(hash_out, HASH_SIZE);
-
-    uint8_t hash_with_buffer[len + HASH_SIZE];
-    memcpy(hash_with_buffer, hash_out, HASH_SIZE);
-    memcpy(hash_with_buffer + HASH_SIZE, buffer, len);
-
-    //print_debug("Hash with Buffer:");
-    //print_hex_debug(hash_with_buffer, len + HASH_SIZE);
-
-    //TODO send hash_with_buffer
-    return send_packet(address, len + HASH_SIZE, hash_with_buffer);
-    
-    //return send_packet(address, len, buffer);
-    */
+    // Send the encrypted data
+    return send_packet(address, packet_size, encrypted_buffer);  
 }
+
+
 
 /**
  * @brief Secure Receive
@@ -213,47 +156,32 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
  * This function must be implemented by your team to align with the security requirements.
 */
 int secure_receive(i2c_addr_t address, uint8_t* buffer) {
-    uint8_t len = poll_and_receive_packet(address, buffer);
-    
+    size_t packet_size = BLOCK_SIZE * 16;
+
     uint8_t key[KEY_SIZE];
-    uint8_t decrypted[BLOCK_SIZE];
+    bzero(key, KEY_SIZE);
 
-    bzero(key, BLOCK_SIZE);
 
-    print_debug("AP rec- Encrypted message received: ");
-    print_hex_debug(buffer, BLOCK_SIZE);
+    poll_and_receive_packet(address, buffer);
 
-    decrypt_sym(buffer, BLOCK_SIZE, key, decrypted);
+    decrypt_sym(buffer, packet_size, key, buffer);
 
-    print_debug("AP rec- Decrypted message received: ");
-    print_hex_debug(decrypted, len);
+    size_t pad = 0;
+    for (int i = packet_size - 1; i >= 0; i--) {
+        if (buffer[i] == '\0')
+            pad++;
+        else
+            break;
+    }
 
-    return len;
-
-    /*
-    uint8_t key[KEY_SIZE];
-    
-    // Zero out the key
-    bzero(key, BLOCK_SIZE);
-    //memset(key, SECRET, KEY_SIZE);
-
-    uint8_t decrypted[BLOCK_SIZE];
-    decrypt_sym(buffer, BLOCK_SIZE, key, decrypted);
-    print_debug("Decrypted message received: ");
-    print_hex_debug(decrypted, BLOCK_SIZE);
-    return poll_and_receive_packet(address, decrypted);
-    
-    
-    /* HASHING
-    int bytes_received;
-    bytes_received = poll_and_receive_packet(address, buffer);
-    print_debug("Received info:");
-    print_hex_debug(buffer, bytes_received);
-    return bytes_received;
-    */
-
-    //return poll_and_receive_packet(address,buffer);
+    return (packet_size - pad);
 }
+
+
+
+
+
+
 
 /**
  * @brief Get Provisioned IDs

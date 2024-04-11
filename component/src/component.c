@@ -70,6 +70,7 @@ typedef struct {
 
 typedef struct {
     uint32_t component_id;
+    uint32_t nonce;
 } validate_message;
 
 typedef struct {
@@ -100,32 +101,29 @@ uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
  * This function must be implemented by your team to align with the security requirements.
 */
 void secure_send(uint8_t* buffer, uint8_t len) {
-    uint8_t ciphertext[BLOCK_SIZE];
+    size_t packet_size = BLOCK_SIZE * 16;
+
     uint8_t key[KEY_SIZE];
+    bzero(key, KEY_SIZE);
     
-    // this should implement a key
-    bzero(key, BLOCK_SIZE);
 
-    encrypt_sym(buffer, BLOCK_SIZE, key, ciphertext);
-    
-    send_packet_and_ack(BLOCK_SIZE, ciphertext);
-    
-    /*
-    uint8_t ciphertext[BLOCK_SIZE];
-    uint8_t key[KEY_SIZE];
-    
-    // Zero out the key
-    bzero(key, BLOCK_SIZE);
-    //memset(key, SECRET, KEY_SIZE);
+    uint8_t padded_buffer[packet_size];
+    uint8_t encrypted_buffer[packet_size];
 
-    // Encrypt example data and print out
-    encrypt_sym(buffer, BLOCK_SIZE, key, ciphertext);    
+    memcpy(padded_buffer, buffer, len);
 
-    send_packet_and_ack(sizeof(ciphertext), ciphertext);
+    // Add padding bytes with the chosen character
+    for (int i = len; i < packet_size; i++) {
+        padded_buffer[i] = '\0';
+    }
 
-    //send_packet_and_ack(len, buffer); 
-    */
+    encrypt_sym((uint8_t*)padded_buffer, packet_size, key, encrypted_buffer);
+
+    send_packet_and_ack(packet_size, encrypted_buffer); 
 }
+
+
+
 
 /**
  * @brief Secure Receive
@@ -138,31 +136,26 @@ void secure_send(uint8_t* buffer, uint8_t len) {
  * This function must be implemented by your team to align with the security requirements.
 */
 int secure_receive(uint8_t* buffer) {
-    uint8_t len = wait_and_receive_packet(buffer);
+    size_t packet_size = BLOCK_SIZE * 16;
+
+    wait_and_receive_packet(buffer);
     
     uint8_t key[KEY_SIZE];
-    uint8_t decrypted[BLOCK_SIZE];
+    bzero(key, KEY_SIZE);
 
-    // Zero out the key
-    bzero(key, BLOCK_SIZE);
+    decrypt_sym(buffer, packet_size, key, buffer);
 
-    decrypt_sym(buffer, BLOCK_SIZE, key, decrypted);
+    size_t pad = 0;
+    for (int i = packet_size - 1; i >= 0; i--) {
+        if (buffer[i] == '\0')
+            pad++;
+        else
+            break;
+    }
 
-    memcpy(buffer, decrypted, BLOCK_SIZE);
-
-    return len;
-    
-    /* HASHING
-    
-    uint8_t hash_received;
-    memcpy(&hash_received, buffer, HASH_SIZE);
-    secure_send(hash_received, HASH_SIZE);
-    buffer += HASH_SIZE;
-
-
-    return wait_and_receive_packet(buffer);
-    */
+    return (packet_size - pad);
 }
+
 
 /******************************* FUNCTION DEFINITIONS *********************************/
 

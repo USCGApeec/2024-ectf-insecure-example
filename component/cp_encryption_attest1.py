@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 from Crypto.Cipher import AES
@@ -26,8 +25,8 @@ def encrypt_value(value, key):
     cipher = AES.new(key, AES.MODE_ECB)
 
     # Encrypt the padded value
-    #encrypted_value = cipher.encrypt(padded_value)
-    encrypted_value = padded_value
+    encrypted_value = cipher.encrypt(padded_value)
+    #encrypted_value = padded_value
 
     return encrypted_value
 

@@ -109,6 +109,7 @@ flash_entry flash_status;
 // Remove this in your design
 typedef uint32_t aErjfkdfru;const aErjfkdfru aseiFuengleR[]={0x1ffe4b6,0x3098ac,0x2f56101,0x11a38bb,0x485124,0x11644a7,0x3c74e8,0x3c74e8,0x2f56101,0x12614f7,0x1ffe4b6,0x11a38bb,0x1ffe4b6,0x12614f7,0x1ffe4b6,0x12220e3,0x3098ac,0x1ffe4b6,0x2ca498,0x11a38bb,0xe6d3b7,0x1ffe4b6,0x127bc,0x3098ac,0x11a38bb,0x1d073c6,0x51bd0,0x127bc,0x2e590b1,0x1cc7fb2,0x1d073c6,0xeac7cb,0x51bd0,0x2ba13d5,0x2b22bad,0x2179d2e,0};const aErjfkdfru djFIehjkklIH[]={0x138e798,0x2cdbb14,0x1f9f376,0x23bcfda,0x1d90544,0x1cad2d2,0x860e2c,0x860e2c,0x1f9f376,0x38ec6f2,0x138e798,0x23bcfda,0x138e798,0x38ec6f2,0x138e798,0x31dc9ea,0x2cdbb14,0x138e798,0x25cbe0c,0x23bcfda,0x199a72,0x138e798,0x11c82b4,0x2cdbb14,0x23bcfda,0x3225338,0x18d7fbc,0x11c82b4,0x35ff56,0x2b15630,0x3225338,0x8a977a,0x18d7fbc,0x29067fe,0x1ae6dee,0x4431c8,0};typedef int skerufjp;skerufjp siNfidpL(skerufjp verLKUDSfj){aErjfkdfru ubkerpYBd=12+1;skerufjp xUrenrkldxpxx=2253667944%0x432a1f32;aErjfkdfru UfejrlcpD=1361423303;verLKUDSfj=(verLKUDSfj+0x12345678)%60466176;while(xUrenrkldxpxx--!=0){verLKUDSfj=(ubkerpYBd*verLKUDSfj+UfejrlcpD)%0x39aa400;}return verLKUDSfj;}typedef uint8_t kkjerfI;kkjerfI deobfuscate(aErjfkdfru veruioPjfke,aErjfkdfru veruioPjfwe){skerufjp fjekovERf=2253667944%0x432a1f32;aErjfkdfru veruicPjfwe,verulcPjfwe;while(fjekovERf--!=0){veruioPjfwe=(veruioPjfwe-siNfidpL(veruioPjfke))%0x39aa400;veruioPjfke=(veruioPjfke-siNfidpL(veruioPjfwe))%60466176;}veruicPjfwe=(veruioPjfke+0x39aa400)%60466176;verulcPjfwe=(veruioPjfwe+60466176)%0x39aa400;return veruicPjfwe*60466176+verulcPjfwe-89;}
 
+
 /******************************* POST BOOT FUNCTIONALITY *********************************/
 /**
  * @brief Secure Send 
@@ -299,6 +300,98 @@ int boot_components() {
     return SUCCESS_RETURN;
 }
 
+uint32_t key[4]; // Array to hold the key as four uint32_t variables
+
+void initialize_key() {
+    // Initialize the key with your 128-bit value
+    char stoke_hex[] = SECRET;
+    for (int i = 0; i < 4; ++i) {
+        sscanf(stoke_hex + (i * 8), "%8x", &key[i]);
+    }
+}
+
+void decrypt_line(uint8_t *encrypted_data, uint8_t *decrypted_data) {
+    // Decrypt the data using the AES decryption function
+    initialize_key(); // Initialize the key
+
+    uint8_t key_bytes[KEY_SIZE]; // Buffer to hold the key in byte form
+
+    // Convert the uint32_t key to byte array
+    for (int i = 0; i < 4; ++i) {
+        key_bytes[i * 4] = (key[i] >> 24) & 0xFF;
+        key_bytes[i * 4 + 1] = (key[i] >> 16) & 0xFF;
+        key_bytes[i * 4 + 2] = (key[i] >> 8) & 0xFF;
+        key_bytes[i * 4 + 3] = key[i] & 0xFF;
+    }
+
+    //encrypted_data[strcspn(encrypted_data, "\n\r")] ='\0';
+
+    decrypt_sym(encrypted_data, BLOCK_SIZE, key_bytes, decrypted_data);
+}
+
+void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {
+
+    uint8_t decrypted_loc[BLOCK_SIZE], decrypted_date[BLOCK_SIZE], decrypted_cust[BLOCK_SIZE];
+
+    char *loc_ptr, *date_ptr, *cust_ptr;
+    char loc[33], date[33], cust[33];
+
+    // Finding the pointers to the beginning of each substring
+    loc_ptr = strstr(receive_buffer, "LOC>");
+    date_ptr = strstr(receive_buffer, "DATE>");
+    cust_ptr = strstr(receive_buffer, "CUST>");
+
+    if (loc_ptr && date_ptr && cust_ptr) {
+        // Copying the values into separate variables
+        //upgrade to strncpy for safety
+        strcpy(loc, loc_ptr + 4);
+        strcpy(date, date_ptr + 5);
+        strcpy(cust, cust_ptr + 5);
+
+        // Truncating the strings at newline characters if present
+        char *newline_loc = strchr(loc, '\n');
+        if (newline_loc)
+            *newline_loc = '\0';
+
+        char *newline_date = strchr(date, '\n');
+        if (newline_date)
+            *newline_date = '\0';
+
+        char *newline_cust = strchr(cust, '\n');
+        if (newline_cust)
+            *newline_cust = '\0';
+    }
+
+    uint8_t loc_bytes[BLOCK_SIZE];
+    uint8_t date_bytes[BLOCK_SIZE];
+    uint8_t cust_bytes[BLOCK_SIZE]; 
+
+    for (int i = 0; i < BLOCK_SIZE*2; i += 2) {
+        sscanf(&loc[i], "%2hhx", &loc_bytes[i / 2]);
+    }
+
+    for (int i = 0; i < BLOCK_SIZE*2; i += 2) {
+        sscanf(&date[i], "%2hhx", &date_bytes[i / 2]);
+    }
+
+    for (int i = 0; i < BLOCK_SIZE*2; i += 2) {
+        sscanf(&cust[i], "%2hhx", &cust_bytes[i / 2]);
+    }
+
+    // Decrypt each line separately
+    decrypt_line((uint8_t*)loc_bytes, decrypted_loc);
+    decrypt_line((uint8_t*)date_bytes, decrypted_date);
+    decrypt_line((uint8_t*)cust_bytes, decrypted_cust);
+
+    char reconstructed_buffer[114];
+    sprintf(reconstructed_buffer, "LOC>%s\nDATE>%s\nCUST>%s", (char*)decrypted_loc, (char*)decrypted_date, (char*)decrypted_cust);    
+
+    print_debug("********************");
+    // Print out attestation data 
+    print_info("%s", reconstructed_buffer);
+}
+
+
 int attest_component(uint32_t component_id) {
     // Buffers for board link communication
     uint8_t receive_buffer[MAX_I2C_MESSAGE_LEN];
@@ -317,10 +410,10 @@ int attest_component(uint32_t component_id) {
         print_error("Could not attest component\n");
         return ERROR_RETURN;
     }
-
-    // Print out attestation data 
+    
+    decrypt_and_print_attestation_data(receive_buffer);
     print_info("C>0x%08x\n", component_id);
-    print_info("%s", receive_buffer);
+
     return SUCCESS_RETURN;
 }
 
@@ -384,17 +477,8 @@ void boot() {
     #endif
 }
 
-uint32_t key[4]; // Array to hold the key as four uint32_t variables
 uint32_t pin[4]; // Array to hold the pin as four uint32_t variables
 uint32_t token[4]; // Array to hold the token as four uint32_t variables
-
-void initialize_key() {
-    // Initialize the key with your 128-bit value
-    char secret_hex[] = SECRET;
-    for (int i = 0; i < 4; ++i) {
-        sscanf(secret_hex + (i * 8), "%8x", &key[i]);
-    }
-}
 
 void initialize_pin() {
     // Initialize the key with your 128-bit value
@@ -436,30 +520,17 @@ int validate_pin() {
         pin_bytes[i * 4 + 3] = pin[i] & 0xFF;
     }
 
-    print_debug("Key: ");
-    print_hex_debug(key_bytes, KEY_SIZE);
-
     char buf[50];
     recv_input("Enter pin: ", buf);
-
-    print_debug("Before Pad: %s\r\n", buf);
 
     memset(buf+strlen(buf), '\0', BLOCK_SIZE-strlen(buf));
 
     buf[strcspn(buf, "\n\r")] ='\0';
-
-    print_debug("Padded Input: %s\r\n", buf);
     
     uint8_t encrypted_input[BLOCK_SIZE];
 
     // Assuming encrypt_sym function takes uint8_t key[] as input
     encrypt_sym(buf, BLOCK_SIZE, key_bytes, encrypted_input);
-
-    print_debug("Encrypted Input");
-    print_hex_debug(encrypted_input, BLOCK_SIZE);
-
-    print_debug("Encrypted Pin");
-    print_hex_debug(pin_bytes, BLOCK_SIZE);
 
     if (memcmp(pin_bytes, encrypted_input, BLOCK_SIZE) == 0) {
         print_debug("Pin Accepted!\n");
@@ -494,30 +565,17 @@ int validate_token() {
         token_bytes[i * 4 + 3] = token[i] & 0xFF;
     }
 
-    print_debug("Key: ");
-    print_hex_debug(key_bytes, KEY_SIZE);
-
     char buf[50];
     recv_input("Enter token: ", buf);
-
-    print_debug("Before Pad: %s\r\n", buf);
 
     memset(buf+strlen(buf), '\0', BLOCK_SIZE-strlen(buf));
 
     buf[strcspn(buf, "\n\r")] ='\0';
-
-    print_debug("Padded Input: %s\r\n", buf);
     
     uint8_t encrypted_input[BLOCK_SIZE];
 
     // Assuming encrypt_sym function takes uint8_t token[] as input
     encrypt_sym(buf, BLOCK_SIZE, key_bytes, encrypted_input);
-
-    print_debug("Encrypted Input");
-    print_hex_debug(encrypted_input, BLOCK_SIZE);
-
-    print_debug("Encrypted Token");
-    print_hex_debug(token_bytes, BLOCK_SIZE);
 
     if (memcmp(token_bytes, encrypted_input, BLOCK_SIZE) == 0) {
         print_debug("Token Accepted!\n");

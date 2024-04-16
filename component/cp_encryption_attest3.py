@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 from Crypto.Cipher import AES
@@ -45,19 +44,19 @@ def get_params(secret_file_path):
     with open(file_path, "r") as file:
         lines = file.readlines()
 
-    attestation_loc = None
+    attestation_cust = None
 
-    # Modify the ATTESTATION_LOC line
+    # Modify the ATTESTATION_CUST line
     new_content = []
     for line in lines:
         if search_term in line:
-            # Extract the location
-            attestation_loc = line.split('"')[1]
-            # Encrypt the location
-            encrypted_loc = encrypt_value(attestation_loc, aes_key)
-            # Convert the encrypted location to a hexadecimal string for storage
-            encrypted_loc_hex = hexlify(encrypted_loc).decode()
-            new_content.append(f'{search_term} "{encrypted_loc_hex}"\n')  # Change the ATTESTATION_LOC value here
+            # Extract the customer
+            attestation_cust = line.split('"')[1]
+            # Encrypt the customer
+            encrypted_cust = encrypt_value(attestation_cust, aes_key)
+            # Convert the encrypted customer to a hexadecimal string for storage
+            encrypted_cust_hex = hexlify(encrypted_cust).decode()
+            new_content.append(f'{search_term} "{encrypted_cust_hex}"\n')  # Change the ATTESTATION_CUST value here
         else:
             new_content.append(line)
 
@@ -65,7 +64,7 @@ def get_params(secret_file_path):
     with open(file_path, 'w') as file:
         file.writelines(new_content)
 
-    print("ATTESTATION_LOC has been updated.")
+    print("ATTESTATION_CUST has been updated.")
 
 if __name__ == "__main__":
    if len(sys.argv) != 2:

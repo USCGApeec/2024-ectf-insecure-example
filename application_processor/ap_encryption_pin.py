@@ -18,16 +18,16 @@ def add_padding(message):
     return padded_message
 
 def encrypt_pin(pin, key):
-   # Pad the PIN to be 16 bytes long
-   padded_pin = add_padding(pin.encode())
+    # Pad the PIN to be 16 bytes long
+    padded_pin = add_padding(pin.encode())
 
-   # Create AES cipher object
-   cipher = AES.new(key, AES.MODE_ECB)
+    # Create AES cipher object
+    cipher = AES.new(key, AES.MODE_ECB)
 
-   # Encrypt the padded PIN
-   encrypted_pin = cipher.encrypt(padded_pin)
+    # Encrypt the padded PIN
+    encrypted_pin = cipher.encrypt(padded_pin)
 
-   return encrypted_pin
+    return encrypted_pin
 
 def get_params(secrets_file_path):
    # Define the path to your file

@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 from Crypto.Cipher import AES
@@ -30,7 +29,6 @@ def encrypt_value(value, key):
 
     return encrypted_value
 
-
 def get_params(secret_file_path):
     # Define the path to your file
     file_path = './inc/ectf_params.h'
@@ -45,19 +43,19 @@ def get_params(secret_file_path):
     with open(file_path, "r") as file:
         lines = file.readlines()
 
-    attestation_loc = None
+    attestation_date = None
 
-    # Modify the ATTESTATION_LOC line
+    # Modify the ATTESTATION_DATE line
     new_content = []
     for line in lines:
         if search_term in line:
-            # Extract the location
-            attestation_loc = line.split('"')[1]
-            # Encrypt the location
-            encrypted_loc = encrypt_value(attestation_loc, aes_key)
-            # Convert the encrypted location to a hexadecimal string for storage
-            encrypted_loc_hex = hexlify(encrypted_loc).decode()
-            new_content.append(f'{search_term} "{encrypted_loc_hex}"\n')  # Change the ATTESTATION_LOC value here
+            # Extract the date
+            attestation_date = line.split('"')[1]
+            # Encrypt the date
+            encrypted_date = encrypt_value(attestation_date, aes_key)
+            # Convert the encrypted date to a hexadecimal string for storage
+            encrypted_date_hex = hexlify(encrypted_date).decode()
+            new_content.append(f'{search_term} "{encrypted_date_hex}"\n')  # Change the ATTESTATION_DATE value here
         else:
             new_content.append(line)
 
@@ -65,7 +63,7 @@ def get_params(secret_file_path):
     with open(file_path, 'w') as file:
         file.writelines(new_content)
 
-    print("ATTESTATION_LOC has been updated.")
+    print("ATTESTATION_DATE has been updated.")
 
 if __name__ == "__main__":
    if len(sys.argv) != 2:

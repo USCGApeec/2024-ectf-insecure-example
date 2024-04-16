@@ -32,8 +32,10 @@
 #endif
 
 #ifdef POST_BOOT
+#include "mxc_delay.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #endif
 
 // Includes from containerized build
@@ -382,23 +384,142 @@ void boot() {
     #endif
 }
 
-// Compare the entered PIN to the correct PIN
+uint32_t key[4]; // Array to hold the key as four uint32_t variables
+uint32_t pin[4]; // Array to hold the pin as four uint32_t variables
+uint32_t token[4]; // Array to hold the token as four uint32_t variables
+
+void initialize_key() {
+    // Initialize the key with your 128-bit value
+    char secret_hex[] = SECRET;
+    for (int i = 0; i < 4; ++i) {
+        sscanf(secret_hex + (i * 8), "%8x", &key[i]);
+    }
+}
+
+void initialize_pin() {
+    // Initialize the key with your 128-bit value
+    char spin_hex[] = AP_PIN;
+    for (int i = 0; i < 4; ++i) {
+        sscanf(spin_hex + (i * 8), "%8x", &pin[i]);
+    }
+}
+
+void initialize_token() {
+    // Initialize the key with your 128-bit value
+    char stoke_hex[] = AP_TOKEN;
+    for (int i = 0; i < 4; ++i) {
+        sscanf(stoke_hex + (i * 8), "%8x", &token[i]);
+    }
+}
+
 int validate_pin() {
+    initialize_key(); // Initialize the key
+    initialize_pin(); //Initialize the pin
+
+    uint8_t key_bytes[KEY_SIZE]; // Buffer to hold the key in byte form
+
+    // Convert the uint32_t key to byte array
+    for (int i = 0; i < 4; ++i) {
+        key_bytes[i * 4] = (key[i] >> 24) & 0xFF;
+        key_bytes[i * 4 + 1] = (key[i] >> 16) & 0xFF;
+        key_bytes[i * 4 + 2] = (key[i] >> 8) & 0xFF;
+        key_bytes[i * 4 + 3] = key[i] & 0xFF;
+    }
+
+    uint8_t pin_bytes[BLOCK_SIZE]; // Buffer to hold the key in byte form
+
+    // Convert the uint32_t pin to byte array
+    for (int i = 0; i < 4; ++i) {
+        pin_bytes[i * 4] = (pin[i] >> 24) & 0xFF;
+        pin_bytes[i * 4 + 1] = (pin[i] >> 16) & 0xFF;
+        pin_bytes[i * 4 + 2] = (pin[i] >> 8) & 0xFF;
+        pin_bytes[i * 4 + 3] = pin[i] & 0xFF;
+    }
+
+    print_debug("Key: ");
+    print_hex_debug(key_bytes, KEY_SIZE);
+
     char buf[50];
     recv_input("Enter pin: ", buf);
-    if (!strcmp(buf, AP_PIN)) {
+
+    print_debug("Before Pad: %s\r\n", buf);
+
+    memset(buf+strlen(buf), '\0', BLOCK_SIZE-strlen(buf));
+
+    buf[strcspn(buf, "\n\r")] ='\0';
+
+    print_debug("Padded Input: %s\r\n", buf);
+    
+    uint8_t encrypted_input[BLOCK_SIZE];
+
+    // Assuming encrypt_sym function takes uint8_t key[] as input
+    encrypt_sym(buf, BLOCK_SIZE, key_bytes, encrypted_input);
+
+    print_debug("Encrypted Input");
+    print_hex_debug(encrypted_input, BLOCK_SIZE);
+
+    print_debug("Encrypted Pin");
+    print_hex_debug(pin_bytes, BLOCK_SIZE);
+
+    if (memcmp(pin_bytes, encrypted_input, BLOCK_SIZE) == 0) {
         print_debug("Pin Accepted!\n");
         return SUCCESS_RETURN;
     }
-    print_error("Invalid PIN!\n");
+    print_error("Invalid Pin!\n");
     return ERROR_RETURN;
 }
 
 // Function to validate the replacement token
 int validate_token() {
+    initialize_key(); // Initialize the key
+    initialize_token(); //Initialize the pin
+
+    uint8_t key_bytes[KEY_SIZE]; // Buffer to hold the key in byte form
+
+    // Convert the uint32_t key to byte array
+    for (int i = 0; i < 4; ++i) {
+        key_bytes[i * 4] = (key[i] >> 24) & 0xFF;
+        key_bytes[i * 4 + 1] = (key[i] >> 16) & 0xFF;
+        key_bytes[i * 4 + 2] = (key[i] >> 8) & 0xFF;
+        key_bytes[i * 4 + 3] = key[i] & 0xFF;
+    }
+
+    uint8_t token_bytes[BLOCK_SIZE]; // Buffer to hold the token in byte form
+
+    // Convert the uint32_t token to byte array
+    for (int i = 0; i < 4; ++i) {
+        token_bytes[i * 4] = (token[i] >> 24) & 0xFF;
+        token_bytes[i * 4 + 1] = (token[i] >> 16) & 0xFF;
+        token_bytes[i * 4 + 2] = (token[i] >> 8) & 0xFF;
+        token_bytes[i * 4 + 3] = token[i] & 0xFF;
+    }
+
+    print_debug("Key: ");
+    print_hex_debug(key_bytes, KEY_SIZE);
+
     char buf[50];
     recv_input("Enter token: ", buf);
-    if (!strcmp(buf, AP_TOKEN)) {
+
+    print_debug("Before Pad: %s\r\n", buf);
+
+    memset(buf+strlen(buf), '\0', BLOCK_SIZE-strlen(buf));
+
+    buf[strcspn(buf, "\n\r")] ='\0';
+
+    print_debug("Padded Input: %s\r\n", buf);
+    
+    uint8_t encrypted_input[BLOCK_SIZE];
+
+    // Assuming encrypt_sym function takes uint8_t token[] as input
+    encrypt_sym(buf, BLOCK_SIZE, key_bytes, encrypted_input);
+
+    print_debug("Encrypted Input");
+    print_hex_debug(encrypted_input, BLOCK_SIZE);
+
+    print_debug("Encrypted Token");
+    print_hex_debug(token_bytes, BLOCK_SIZE);
+
+    if (memcmp(token_bytes, encrypted_input, BLOCK_SIZE) == 0) {
         print_debug("Token Accepted!\n");
         return SUCCESS_RETURN;
     }

@@ -7,8 +7,10 @@ __check_defined = \
 	$(if $(value $1),, \
 		$(error Undefined $1))
 
-all:
-	echo "#define SECRET 1234" > global_secrets.h
+all: key_gen
+
+key_gen:
+	$(shell) poetry run python ./key_gen.py
 
 clean:
 	rm -f global_secrets.h

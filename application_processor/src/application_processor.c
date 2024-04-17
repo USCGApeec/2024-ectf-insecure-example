@@ -115,6 +115,17 @@ size_t packet_size = BLOCK_SIZE * 15;
  * This function must be implemented by your team to align with the security requirements.
 
 */
+
+uint32_t key[4]; // Array to hold the key as four uint32_t variables
+
+void initialize_key() {
+    // Initialize the key with your 128-bit value
+    char stoke_hex[] = SECRET;
+    for (int i = 0; i < 4; ++i) {
+        sscanf(stoke_hex + (i * 8), "%8x", &key[i]);
+    }
+}
+
 int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
     print_debug("Attempting send");
 
@@ -123,13 +134,17 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
         return -1;
     }
 
-    // need to do coles key here
-    uint8_t key[KEY_SIZE];
-    bzero(key, KEY_SIZE);
+    initialize_key(); // Initialize the key
 
-    print_debug("Created key");
+    uint8_t key_bytes[KEY_SIZE]; // Buffer to hold the key in byte form
 
-    //memcpy(key, AES_KEY, KEY_SIZE);
+    // Convert the uint32_t key to byte array
+    for (int i = 0; i < 4; ++i) {
+        key_bytes[i * 4] = (key[i] >> 24) & 0xFF;
+        key_bytes[i * 4 + 1] = (key[i] >> 16) & 0xFF;
+        key_bytes[i * 4 + 2] = (key[i] >> 8) & 0xFF;
+        key_bytes[i * 4 + 3] = key[i] & 0xFF;
+    }
 
     uint8_t padded_buffer[packet_size];
     uint8_t encrypted_buffer[packet_size];
@@ -143,7 +158,7 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
     }
     print_debug("Padded buffer");
     
-    encrypt_sym((uint8_t*)padded_buffer, packet_size, key, encrypted_buffer);
+    encrypt_sym((uint8_t*)padded_buffer, packet_size, key_bytes, encrypted_buffer);
     print_debug("encrpyted");
 
     return send_packet(address, packet_size, encrypted_buffer); 
@@ -163,13 +178,21 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
  * This function must be implemented by your team to align with the security requirements.
 */
 int secure_receive(i2c_addr_t address, uint8_t* buffer) {
-    uint8_t key[KEY_SIZE];
-    bzero(key, KEY_SIZE); 
-    //memcpy(key, AES_KEY, KEY_SIZE);
+    initialize_key(); // Initialize the key
+
+    uint8_t key_bytes[KEY_SIZE]; // Buffer to hold the key in byte form
+
+    // Convert the uint32_t key to byte array
+    for (int i = 0; i < 4; ++i) {
+        key_bytes[i * 4] = (key[i] >> 24) & 0xFF;
+        key_bytes[i * 4 + 1] = (key[i] >> 16) & 0xFF;
+        key_bytes[i * 4 + 2] = (key[i] >> 8) & 0xFF;
+        key_bytes[i * 4 + 3] = key[i] & 0xFF;
+    }
 
     poll_and_receive_packet(address, buffer);
 
-    decrypt_sym(buffer, packet_size, key, buffer);
+    decrypt_sym(buffer, packet_size, key_bytes, buffer);
 
     size_t pad = 0;
     for (int i = packet_size - 1; i >= 0; i--) {
@@ -343,15 +366,7 @@ int boot_components() {
     return SUCCESS_RETURN;
 }
 
-uint32_t key[4]; // Array to hold the key as four uint32_t variables
-
-void initialize_key() {
-    // Initialize the key with your 128-bit value
-    char stoke_hex[] = SECRET;
-    for (int i = 0; i < 4; ++i) {
-        sscanf(stoke_hex + (i * 8), "%8x", &key[i]);
-    }
-}
+/*
 
 void decrypt_line(uint8_t *encrypted_data, uint8_t *decrypted_data) {
     // Decrypt the data using the AES decryption function
@@ -426,41 +441,21 @@ void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {
     decrypt_line((uint8_t*)date_bytes, decrypted_date);
     decrypt_line((uint8_t*)cust_bytes, decrypted_cust);
 
-/*
-    size_t i = BLOCK_SIZE;
-    while (i > 0 && decrypted_loc[i - 1] == '\0') {
-        i--;
+    char reconstructed_buffer[256];
+    sprintf((char*)reconstructed_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n", (char*)decrypted_loc, (char*)decrypted_date, (char*)decrypted_cust);
+
+    int i, j = 0;
+    int recon_size = strlen(reconstructed_buffer);
+    for (i = 0; i < recon_size; i++) {
+        if (reconstructed_buffer[i] != '\0' && reconstructed_buffer[i] != '\a') {
+            reconstructed_buffer[j++] = reconstructed_buffer[i];
+        }
     }
 
-    uint8_t mod_decrypted_loc[i];
-    memcpy(mod_decrypted_loc, decrypted_loc, i*sizeof(uint8_t));
-
-
-     size_t j = BLOCK_SIZE;
-    while (j > 0 && decrypted_date[j - 1] == '\0') {
-        j--;
-    }
-
-    uint8_t mod_decrypted_date[j];
-    memcpy(mod_decrypted_date, decrypted_date, j*sizeof(uint8_t));
-
-    size_t k = BLOCK_SIZE;
-    while (k > 0 && decrypted_cust[k - 1] == '\0') {
-        k--;
-    }
-
-    uint8_t mod_decrypted_cust[k];
-    memcpy(mod_decrypted_cust, decrypted_cust, k*sizeof(uint8_t));
-
-*/
-
-    char reconstructed_buffer[114];
-    sprintf((char*)reconstructed_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n", (char*)decrypted_loc, (char*)decrypted_date, (char*)
-    decrypted_cust);    
-    
     // Print out attestation data 
     print_info("%s", reconstructed_buffer);
 }
+
 
 
 int attest_component(uint32_t component_id) {
@@ -485,6 +480,33 @@ int attest_component(uint32_t component_id) {
     print_info("C>0x%08x\n", component_id);
     decrypt_and_print_attestation_data(receive_buffer);
 
+    return SUCCESS_RETURN;
+}
+
+*/
+
+int attest_component(uint32_t component_id) {
+    // Buffers for board link communication
+    uint8_t receive_buffer[MAX_I2C_MESSAGE_LEN];
+    uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
+
+    // Set the I2C address of the component
+    i2c_addr_t addr = component_id_to_i2c_addr(component_id);
+
+    // Create command message
+    command_message* command = (command_message*) transmit_buffer;
+    command->opcode = COMPONENT_CMD_ATTEST;
+
+    // Send out command and receive result
+    int len = issue_cmd(addr, transmit_buffer, receive_buffer);
+    if (len == ERROR_RETURN) {
+        print_error("Could not attest component\n");
+        return ERROR_RETURN;
+    }
+
+    // Print out attestation data 
+    print_info("C>0x%08x\n", component_id);
+    print_info("%s", receive_buffer);
     return SUCCESS_RETURN;
 }
 

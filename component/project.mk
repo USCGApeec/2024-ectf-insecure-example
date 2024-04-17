@@ -36,16 +36,16 @@ ENTRY=firmware_startup
 # but this will set up compilation and linking for WolfSSL
 
 # Disable Crypto Example
-CRYPTO_EXAMPLE=1
-
-
-all: crypto
-
-crypto:
-	echo "building crypto target!"
-	$(shell) poetry run python ./cp_encryption_attest1.py ../deployment/global_secrets.h
-	$(shell) poetry run python ./cp_encryption_attest2.py ../deployment/global_secrets.h
-	$(shell) poetry run python ./cp_encryption_attest3.py ../deployment/global_secrets.h
-
-# Enable Crypto Example
 #CRYPTO_EXAMPLE=1
+
+
+#all: crypto
+
+#crypto:
+#	echo "building crypto target!"
+#	$(shell) poetry run python ./cp_encryption_attest1.py ../deployment/global_secrets.h
+#	$(shell) poetry run python ./cp_encryption_attest2.py ../deployment/global_secrets.h
+#	$(shell) poetry run python ./cp_encryption_attest3.py ../deployment/global_secrets.h
+
+ Enable Crypto Example
+CRYPTO_EXAMPLE=1

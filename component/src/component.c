@@ -100,12 +100,29 @@ size_t packet_size = BLOCK_SIZE * 15;
  * Securely send data over I2C. This function is utilized in POST_BOOT functionality.
  * This function must be implemented by your team to align with the security requirements.
 */
-void secure_send(uint8_t* buffer, uint8_t len) {
-    uint8_t key[KEY_SIZE];
-    bzero(key, KEY_SIZE);
-    //memcpy(key, AES_KEY, KEY_SIZE);
 
-    //COLE KEY STUFF
+uint32_t key[4]; // Array to hold the key as four uint32_t variables
+
+void initialize_key() {
+    // Initialize the key with your 128-bit value
+    char stoke_hex[] = SECRET;
+    for (int i = 0; i < 4; ++i) {
+        sscanf(stoke_hex + (i * 8), "%8x", &key[i]);
+    }
+}
+
+void secure_send(uint8_t* buffer, uint8_t len) {
+    initialize_key(); // Initialize the key
+
+    uint8_t key_bytes[KEY_SIZE]; // Buffer to hold the key in byte form
+
+    // Convert the uint32_t key to byte array
+    for (int i = 0; i < 4; ++i) {
+        key_bytes[i * 4] = (key[i] >> 24) & 0xFF;
+        key_bytes[i * 4 + 1] = (key[i] >> 16) & 0xFF;
+        key_bytes[i * 4 + 2] = (key[i] >> 8) & 0xFF;
+        key_bytes[i * 4 + 3] = key[i] & 0xFF;
+    }
     
     uint8_t padded_buffer[packet_size];
     uint8_t encrypted_buffer[packet_size];
@@ -116,7 +133,7 @@ void secure_send(uint8_t* buffer, uint8_t len) {
         padded_buffer[i] = '\0';
     }
 
-    encrypt_sym((uint8_t*)padded_buffer, packet_size, key, encrypted_buffer);
+    encrypt_sym((uint8_t*)padded_buffer, packet_size, key_bytes, encrypted_buffer);
 
     send_packet_and_ack(packet_size, encrypted_buffer); 
     //send_packet_and_ack(len, buffer); 
@@ -135,11 +152,19 @@ void secure_send(uint8_t* buffer, uint8_t len) {
 int secure_receive(uint8_t* buffer) {
     wait_and_receive_packet(buffer);
     
-    uint8_t key[KEY_SIZE];
-    bzero(key, KEY_SIZE);
-    //memcpy(key, AES_KEY, KEY_SIZE);
+    initialize_key(); // Initialize the key
 
-    decrypt_sym(buffer, packet_size, key, buffer);
+    uint8_t key_bytes[KEY_SIZE]; // Buffer to hold the key in byte form
+
+    // Convert the uint32_t key to byte array
+    for (int i = 0; i < 4; ++i) {
+        key_bytes[i * 4] = (key[i] >> 24) & 0xFF;
+        key_bytes[i * 4 + 1] = (key[i] >> 16) & 0xFF;
+        key_bytes[i * 4 + 2] = (key[i] >> 8) & 0xFF;
+        key_bytes[i * 4 + 3] = key[i] & 0xFF;
+    }
+
+    decrypt_sym(buffer, packet_size, key_bytes, buffer);
 
     size_t pad = 0;
     for (int i = packet_size - 1; i >= 0; i--) {

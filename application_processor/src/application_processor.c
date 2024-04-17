@@ -430,16 +430,16 @@ void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {
     sprintf((char*)reconstructed_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n", (char*)decrypted_loc, (char*)decrypted_date, (char*)
     decrypted_cust); 
 
-    size_t i = sizeof(reconstructed_buffer);
-    while (i > 0 && reconstructed_buffer[i - 1] == '\0') {
-        i--;
+    int i, j = 0;
+    int recon_size = strlen(reconstructed_buffer);
+    for (i = 0; i < recon_size; i++) {
+        if (reconstructed_buffer[i] != '\0') {
+            reconstructed_buffer[j++] = reconstructed_buffer[i];
+        }
     }
 
-    uint8_t mod_reconstructed_buffer[i];
-    memcpy(mod_reconstructed_buffer, reconstructed_buffer, i*sizeof(reconstructed_buffer));   
-    
     // Print out attestation data 
-    print_info("%s", mod_reconstructed_buffer);
+    print_info("%s", reconstructed_buffer);
 }
 
 int attest_component(uint32_t component_id) {

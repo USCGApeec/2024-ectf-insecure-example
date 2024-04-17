@@ -386,7 +386,7 @@ void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {
     char reconstructed_buffer[114];
     sprintf(reconstructed_buffer, "LOC>%s\nDATE>%s\nCUST>%s", (char*)decrypted_loc, (char*)decrypted_date, (char*)decrypted_cust);    
 
-    print_debug("********************");
+    //print_debug("********************");
     // Print out attestation data 
     print_info("%s", reconstructed_buffer);
 }
@@ -411,8 +411,8 @@ int attest_component(uint32_t component_id) {
         return ERROR_RETURN;
     }
     
-    decrypt_and_print_attestation_data(receive_buffer);
     print_info("C>0x%08x\n", component_id);
+    decrypt_and_print_attestation_data(receive_buffer);
 
     return SUCCESS_RETURN;
 }

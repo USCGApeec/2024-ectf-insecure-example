@@ -393,15 +393,15 @@ void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {
 
         // Truncating the strings at newline characters if present
         char *newline_loc = strchr(loc, '\n');
-        if (newline_loc)
+//        if (newline_loc)
 //            *newline_loc = '\0';
 
         char *newline_date = strchr(date, '\n');
-        if (newline_date)
+//        if (newline_date)
 //            *newline_date = '\0';
 
         char *newline_cust = strchr(cust, '\n');
-        if (newline_cust)
+ //       if (newline_cust)
  //           *newline_cust = '\0';
     }
 

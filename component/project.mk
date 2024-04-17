@@ -41,4 +41,12 @@ ENTRY=firmware_startup
 # Enable Crypto Example
 CRYPTO_EXAMPLE=1
 
+all: #crypto 
+
+crypto:
+	# echo "building crypto stuff"
+	# $(shell) poetry run python3 ./generate_comp_nonce.py
+
+clean:
+
 

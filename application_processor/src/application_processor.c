@@ -69,7 +69,8 @@
 // design but can be utilized by your design.
 typedef struct {
     uint8_t opcode;
-    uint8_t params[MAX_I2C_MESSAGE_LEN-1];
+    //uint8_t params[MAX_I2C_MESSAGE_LEN-5];
+    uint32_t nonce;
 } command_message;
 
 // Data type for receiving a validate message
@@ -116,33 +117,47 @@ flash_entry flash_status;
 
 */
 int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
-    size_t packet_size = BLOCK_SIZE * 16;
+    print_info("Attempting send");
+
+    size_t packet_size = BLOCK_SIZE * 15;
 
     uint8_t key[KEY_SIZE];
     bzero(key, KEY_SIZE);
 
-    if (len > MAX_PACKET_SIZE) {
-        print_debug("len too big")
+    print_info("Created key");
+
+    //memcpy(key, AES_KEY, KEY_SIZE);
+
+    if (len > packet_size) {
+        print_debug("len too big");
         return -1;
     }
+    
     
     uint8_t padded_buffer[packet_size];
     uint8_t encrypted_buffer[packet_size];
 
+    print_info("Created buffers");
     memcpy(padded_buffer, buffer, len);
+    print_info("Copied to buffers");
 
-    // Add padding bytes with the chosen character
     for (int i = len; i < packet_size; i++) {
         padded_buffer[i] = '\0';
     }
 
+    print_info("Padded buffer");
+    
+
     encrypt_sym((uint8_t*)padded_buffer, packet_size, key, encrypted_buffer);
 
-    // Send the encrypted data
+    print_debug("encrpyted");
+
     return send_packet(address, packet_size, encrypted_buffer);  
 }
 
-
+int secure_send1(uint8_t address, uint8_t* buffer, uint8_t len) {
+    return send_packet(address, len, buffer);
+}
 
 /**
  * @brief Secure Receive
@@ -156,11 +171,11 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
  * This function must be implemented by your team to align with the security requirements.
 */
 int secure_receive(i2c_addr_t address, uint8_t* buffer) {
-    size_t packet_size = BLOCK_SIZE * 16;
+    size_t packet_size = BLOCK_SIZE * 15;
 
     uint8_t key[KEY_SIZE];
-    bzero(key, KEY_SIZE);
-
+    bzero(key, KEY_SIZE); 
+    //memcpy(key, AES_KEY, KEY_SIZE);
 
     poll_and_receive_packet(address, buffer);
 
@@ -177,11 +192,9 @@ int secure_receive(i2c_addr_t address, uint8_t* buffer) {
     return (packet_size - pad);
 }
 
-
-
-
-
-
+int secure_receive1(i2c_addr_t address, uint8_t* buffer) {
+    return poll_and_receive_packet(address, buffer);
+}
 
 /**
  * @brief Get Provisioned IDs
@@ -234,14 +247,12 @@ void init() {
 // Send a command to a component and receive the result
 int issue_cmd(i2c_addr_t addr, uint8_t* transmit, uint8_t* receive) {
     // Send message
-    // int result = send_packet(addr, sizeof(uint8_t), transmit);
     int result = secure_send(addr, transmit, sizeof(uint8_t));
     if (result == ERROR_RETURN) {
         return ERROR_RETURN;
     }
     
     // Receive message
-    //int len = poll_and_receive_packet(addr, receive);
     int len = secure_receive(addr, receive);
     if (len == ERROR_RETURN) {
         return ERROR_RETURN;
@@ -299,6 +310,19 @@ int validate_components() {
         // Create command message
         command_message* command = (command_message*) transmit_buffer;
         command->opcode = COMPONENT_CMD_VALIDATE;
+
+        //command->nonce = (uint32_t)AP_NONCE;
+
+        command->nonce = AP_NONCE;
+
+        print_debug("%d",AP_NONCE);
+        print_debug("%d",(uint32_t)AP_NONCE);
+
+        if(command->nonce == AP_NONCE){
+            print_debug("Matching ap nonces");
+        }else{
+            print_error("Non matching ap nonces");
+        }
         
         // Send out command and receive result
         int len = issue_cmd(addr, transmit_buffer, receive_buffer);
@@ -315,6 +339,17 @@ int validate_components() {
             print_error("Component ID: 0x%08x invalid\n", flash_status.component_ids[i]);
             return ERROR_RETURN;
         }
+        //size_t nonce_1_used = 0;
+        //size_t nonce_2_used = 0;
+        //if(!nonce_1_used && validate->nonce == (uint32_t)COMP_1_NONCE){
+        //if(validate->nonce == ((uint32_t)AP_NONCE + validate->component_id)){
+        if(validate->nonce == (uint32_t)(AP_NONCE + validate->component_id)){
+            print_debug("Matching nonces");
+        }else{
+            print_error("Non matching nonces");
+            return ERROR_RETURN;
+        }
+
     }
     return SUCCESS_RETURN;
 }
@@ -543,8 +578,10 @@ int main() {
 
         // Execute requested command
         if (!strcmp(buf, "list")) {
+            print_debug("listing maybe");
             scan_components();
         } else if (!strcmp(buf, "boot")) {
+            print_debug("booting maybe");
             attempt_boot();
         } else if (!strcmp(buf, "replace")) {
             attempt_replace();

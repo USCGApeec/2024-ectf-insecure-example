@@ -65,7 +65,8 @@ typedef enum {
 // Data structure for receiving messages from the AP
 typedef struct {
     uint8_t opcode;
-    uint8_t params[MAX_I2C_MESSAGE_LEN-1];
+    //uint8_t params [MAX_I2C_MESSAGE_LEN-5];
+    uint32_t nonce;
 } command_message;
 
 typedef struct {
@@ -75,6 +76,7 @@ typedef struct {
 
 typedef struct {
     uint32_t component_id;
+    uint32_t nonce;
 } scan_message;
 
 /********************************* FUNCTION DECLARATIONS **********************************/
@@ -101,18 +103,17 @@ uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
  * This function must be implemented by your team to align with the security requirements.
 */
 void secure_send(uint8_t* buffer, uint8_t len) {
-    size_t packet_size = BLOCK_SIZE * 16;
+    size_t packet_size = BLOCK_SIZE * 15;
 
     uint8_t key[KEY_SIZE];
     bzero(key, KEY_SIZE);
+    //memcpy(key, AES_KEY, KEY_SIZE);
     
-
     uint8_t padded_buffer[packet_size];
     uint8_t encrypted_buffer[packet_size];
 
     memcpy(padded_buffer, buffer, len);
 
-    // Add padding bytes with the chosen character
     for (int i = len; i < packet_size; i++) {
         padded_buffer[i] = '\0';
     }
@@ -120,6 +121,10 @@ void secure_send(uint8_t* buffer, uint8_t len) {
     encrypt_sym((uint8_t*)padded_buffer, packet_size, key, encrypted_buffer);
 
     send_packet_and_ack(packet_size, encrypted_buffer); 
+}
+
+void secure_send1(uint8_t* buffer, uint8_t len) {
+    send_packet_and_ack(len, buffer); 
 }
 
 
@@ -136,12 +141,13 @@ void secure_send(uint8_t* buffer, uint8_t len) {
  * This function must be implemented by your team to align with the security requirements.
 */
 int secure_receive(uint8_t* buffer) {
-    size_t packet_size = BLOCK_SIZE * 16;
+    size_t packet_size = BLOCK_SIZE * 15;
 
     wait_and_receive_packet(buffer);
     
     uint8_t key[KEY_SIZE];
     bzero(key, KEY_SIZE);
+    //memcpy(key, AES_KEY, KEY_SIZE);
 
     decrypt_sym(buffer, packet_size, key, buffer);
 
@@ -154,6 +160,10 @@ int secure_receive(uint8_t* buffer) {
     }
 
     return (packet_size - pad);
+}
+
+int secure_receive1(uint8_t* buffer) {
+    return wait_and_receive_packet(buffer);
 }
 
 
@@ -195,6 +205,8 @@ void boot() {
 void component_process_cmd() {
     command_message* command = (command_message*) receive_buffer;
 
+    // do something with the nonce here.
+
     // Output to application processor dependent on command received
     switch (command->opcode) {
     case COMPONENT_CMD_BOOT:
@@ -204,8 +216,19 @@ void component_process_cmd() {
         process_scan();
         break;
     case COMPONENT_CMD_VALIDATE:
-        process_validate();
-        break;
+        //if(command->nonce != (uint32_t)AP_NONCE){
+        if(command->nonce != (uint32_t)AP_NONCE){
+            printf("Error: Nonce bad \n");
+            LED_Off(LED1);
+            LED_Off(LED2);
+            LED_Off(LED3);
+            break;
+        }else{
+            process_validate();
+            break;
+        }
+        //process_validate();
+        //break;
     case COMPONENT_CMD_ATTEST:
         process_attest();
         break;
@@ -238,6 +261,9 @@ void process_validate() {
     // The AP requested a validation. Respond with the Component ID
     validate_message* packet = (validate_message*) transmit_buffer;
     packet->component_id = COMPONENT_ID;
+    //packet->nonce = (uint32_t)AP_NONCE + COMPONENT_ID;
+    packet->nonce = (uint32_t)(AP_NONCE + COMPONENT_ID);
+    //packet->nonce = (uint32_t)COMP_NONCE;
     secure_send(transmit_buffer, sizeof(validate_message));
     //send_packet_and_ack(sizeof(validate_message), transmit_buffer);
 }

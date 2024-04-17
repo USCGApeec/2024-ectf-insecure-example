@@ -384,7 +384,7 @@ void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {
     decrypt_line((uint8_t*)cust_bytes, decrypted_cust);
 
     char reconstructed_buffer[114];
-    sprintf(reconstructed_buffer, "LOC>%s\nDATE>%s\nCUST>%s", (char*)decrypted_loc, (char*)decrypted_date, (char*)decrypted_cust);    
+    sprintf(reconstructed_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n", (char*)decrypted_loc, (char*)decrypted_date, (char*)decrypted_cust);    
 
     //print_debug("********************");
     // Print out attestation data 

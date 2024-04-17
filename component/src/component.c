@@ -65,11 +65,13 @@ typedef enum {
 // Data structure for receiving messages from the AP
 typedef struct {
     uint8_t opcode;
-    uint8_t params[MAX_I2C_MESSAGE_LEN-1];
+    uint8_t nonce;
+    uint8_t params[MAX_I2C_MESSAGE_LEN-3];
 } command_message;
 
 typedef struct {
     uint32_t component_id;
+    uint8_t nonce;
 } validate_message;
 
 typedef struct {
@@ -189,6 +191,18 @@ void boot() {
     #endif
 }
 
+void process_nonce(command_message* command){ 
+    if(command->nonce == NONCE){
+        process_validate();
+                    }else{
+            LED_Off(LED1);
+            LED_Off(LED2);
+            LED_Off(LED3);
+            MXC_Delay(500000);
+        }
+}
+
+
 // Handle a transaction from the AP
 void component_process_cmd() {
     command_message* command = (command_message*) receive_buffer;
@@ -236,6 +250,9 @@ void process_validate() {
     // The AP requested a validation. Respond with the Component ID
     validate_message* packet = (validate_message*) transmit_buffer;
     packet->component_id = COMPONENT_ID;
+
+    packet->nonce = (NONCE + COMPONENT_ID) % 256;
+
     secure_send(transmit_buffer, sizeof(validate_message));
     //send_packet_and_ack(sizeof(validate_message), transmit_buffer);
 }

@@ -69,12 +69,14 @@
 // design but can be utilized by your design.
 typedef struct {
     uint8_t opcode;
-    uint8_t params[MAX_I2C_MESSAGE_LEN-1];
+    uint8_t nonce;
+    uint8_t params[MAX_I2C_MESSAGE_LEN-3];
 } command_message;
 
 // Data type for receiving a validate message
 typedef struct {
     uint32_t component_id;
+    uint8_t nonce;
 } validate_message;
 
 // Data type for receiving a scan message
@@ -116,7 +118,6 @@ size_t packet_size = BLOCK_SIZE * 15;
 
 */
 int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
-    print_debug("Attempting send");
 
     if (len > packet_size) {
         print_debug("len too big");
@@ -127,21 +128,16 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
     uint8_t key[KEY_SIZE];
     bzero(key, KEY_SIZE);
 
-    print_debug("Created key");
-
     //memcpy(key, AES_KEY, KEY_SIZE);
 
     uint8_t padded_buffer[packet_size];
     uint8_t encrypted_buffer[packet_size];
-    print_debug("Created buffers");
 
     memcpy(padded_buffer, buffer, len);
-    print_debug("Copied to buffers");
 
     for (int i = len; i < packet_size; i++) {
         padded_buffer[i] = '\0';
     }
-    print_debug("Padded buffer");
     
     encrypt_sym((uint8_t*)padded_buffer, packet_size, key, encrypted_buffer);
     print_debug("encrpyted");
@@ -299,6 +295,9 @@ int validate_components() {
         command_message* command = (command_message*) transmit_buffer;
         command->opcode = COMPONENT_CMD_VALIDATE;
         
+        command->nonce = NONCE;
+        print_debug("nonce: %d",command->nonce);
+        
         // Send out command and receive result
         int len = issue_cmd(addr, transmit_buffer, receive_buffer);
         if (len == ERROR_RETURN) {
@@ -312,6 +311,13 @@ int validate_components() {
             print_error("Component ID: 0x%08x invalid\n", flash_status.component_ids[i]);
             return ERROR_RETURN;
         }
+        if(validate->nonce == (NONCE + validate->component_id) % 256){
+            print_debug("Matching nonces");
+        }else{
+            print_error("Non matching nonces");
+            return ERROR_RETURN;
+        }
+
     }
     return SUCCESS_RETURN;
 }
@@ -429,13 +435,15 @@ void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {
     char reconstructed_buffer[256];
     sprintf((char*)reconstructed_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n", (char*)decrypted_loc, (char*)decrypted_date, (char*)decrypted_cust);
 
+    /*
     int i, j = 0;
     int recon_size = strlen(reconstructed_buffer);
     for (i = 0; i < recon_size; i++) {
-        if (reconstructed_buffer[i] != '\0' && reconstructed_buffer[i] != '\a') {
+        if (reconstructed_buffer[i] != '\0' || reconstructed_buffer[i] != '\a') {
             reconstructed_buffer[j++] = reconstructed_buffer[i];
         }
     }
+    */
 
     // Print out attestation data 
     print_info("%s", reconstructed_buffer);
@@ -472,36 +480,6 @@ int attest_component(uint32_t component_id) {
 // YOUR DESIGN MUST NOT CHANGE THIS FUNCTION
 // Boot message is customized through the AP_BOOT_MSG macro
 void boot() {
-    // Example of how to utilize included simple_crypto.h
-    #ifdef CRYPTO_EXAMPLE
-    // This string is 16 bytes long including null terminator
-    // This is the block size of included symmetric encryption
-    char* data = "Crypto Example!";
-    uint8_t ciphertext[BLOCK_SIZE];
-    uint8_t key[KEY_SIZE];
-    
-    // Zero out the key
-    bzero(key, BLOCK_SIZE);
-
-    // Encrypt example data and print out
-    encrypt_sym((uint8_t*)data, BLOCK_SIZE, key, ciphertext); 
-    print_debug("Encrypted data: ");
-    print_hex_debug(ciphertext, BLOCK_SIZE);
-
-    // Hash example encryption results 
-    uint8_t hash_out[HASH_SIZE];
-    hash(ciphertext, BLOCK_SIZE, hash_out);
-
-    // Output hash result
-    print_debug("Hash result: ");
-    print_hex_debug(hash_out, HASH_SIZE);
-    
-    // Decrypt the encrypted message and print out
-    uint8_t decrypted[BLOCK_SIZE];
-    decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
-    print_debug("Decrypted message: %s\r\n", decrypted);
-    #endif
-
     // POST BOOT FUNCTIONALITY
     // DO NOT REMOVE IN YOUR DESIGN
     #ifdef POST_BOOT

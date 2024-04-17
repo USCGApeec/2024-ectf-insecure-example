@@ -28,6 +28,10 @@
 #include "ectf_params.h"
 #include "global_secrets.h"
 
+#ifdef CRYPTO_EXAMPLE
+#include "simple_crypto.h"
+#endif
+
 #ifdef POST_BOOT
 #include "led.h"
 #include <stdint.h>
@@ -84,6 +88,7 @@ void process_attest(void);
 // Global varaibles
 uint8_t receive_buffer[MAX_I2C_MESSAGE_LEN];
 uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
+size_t packet_size = BLOCK_SIZE * 15;
 
 /******************************* POST BOOT FUNCTIONALITY *********************************/
 /**
@@ -96,7 +101,25 @@ uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
  * This function must be implemented by your team to align with the security requirements.
 */
 void secure_send(uint8_t* buffer, uint8_t len) {
-    send_packet_and_ack(len, buffer); 
+    uint8_t key[KEY_SIZE];
+    bzero(key, KEY_SIZE);
+    //memcpy(key, AES_KEY, KEY_SIZE);
+
+    //COLE KEY STUFF
+    
+    uint8_t padded_buffer[packet_size];
+    uint8_t encrypted_buffer[packet_size];
+
+    memcpy(padded_buffer, buffer, len);
+
+    for (int i = len; i < packet_size; i++) {
+        padded_buffer[i] = '\0';
+    }
+
+    encrypt_sym((uint8_t*)padded_buffer, packet_size, key, encrypted_buffer);
+
+    send_packet_and_ack(packet_size, encrypted_buffer); 
+    //send_packet_and_ack(len, buffer); 
 }
 
 /**
@@ -110,7 +133,26 @@ void secure_send(uint8_t* buffer, uint8_t len) {
  * This function must be implemented by your team to align with the security requirements.
 */
 int secure_receive(uint8_t* buffer) {
-    return wait_and_receive_packet(buffer);
+    wait_and_receive_packet(buffer);
+    
+    uint8_t key[KEY_SIZE];
+    bzero(key, KEY_SIZE);
+    //memcpy(key, AES_KEY, KEY_SIZE);
+
+    decrypt_sym(buffer, packet_size, key, buffer);
+
+    size_t pad = 0;
+    for (int i = packet_size - 1; i >= 0; i--) {
+        if (buffer[i] == '\0')
+            pad++;
+        else
+            break;
+    }
+
+    return (packet_size - pad);
+    
+
+    //return wait_and_receive_packet(buffer);
 }
 
 /******************************* FUNCTION DEFINITIONS *********************************/
@@ -176,7 +218,8 @@ void process_boot() {
     // respond with the boot message
     uint8_t len = strlen(COMPONENT_BOOT_MSG) + 1;
     memcpy((void*)transmit_buffer, COMPONENT_BOOT_MSG, len);
-    send_packet_and_ack(len, transmit_buffer);
+    secure_send(transmit_buffer, len);
+    //send_packet_and_ack(len, transmit_buffer);
     // Call the boot function
     boot();
 }
@@ -185,21 +228,24 @@ void process_scan() {
     // The AP requested a scan. Respond with the Component ID
     scan_message* packet = (scan_message*) transmit_buffer;
     packet->component_id = COMPONENT_ID;
-    send_packet_and_ack(sizeof(scan_message), transmit_buffer);
+    secure_send(transmit_buffer, sizeof(scan_message));
+    //send_packet_and_ack(sizeof(scan_message), transmit_buffer);
 }
 
 void process_validate() {
     // The AP requested a validation. Respond with the Component ID
     validate_message* packet = (validate_message*) transmit_buffer;
     packet->component_id = COMPONENT_ID;
-    send_packet_and_ack(sizeof(validate_message), transmit_buffer);
+    secure_send(transmit_buffer, sizeof(validate_message));
+    //send_packet_and_ack(sizeof(validate_message), transmit_buffer);
 }
 
 void process_attest() {
     // The AP requested attestation. Respond with the attestation data
     uint8_t len = sprintf((char*)transmit_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n",
                 ATTESTATION_LOC, ATTESTATION_DATE, ATTESTATION_CUSTOMER) + 1;
-    send_packet_and_ack(len, transmit_buffer);
+    secure_send(transmit_buffer, len);
+    //send_packet_and_ack(len, transmit_buffer);
 }
 
 /*********************************** MAIN *************************************/
@@ -217,7 +263,8 @@ int main(void) {
     LED_On(LED2);
 
     while (1) {
-        wait_and_receive_packet(receive_buffer);
+        secure_receive(receive_buffer);
+        //wait_and_receive_packet(receive_buffer);
 
         component_process_cmd();
     }

@@ -377,7 +377,7 @@ void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {
     uint8_t decrypted_loc[BLOCK_SIZE], decrypted_date[BLOCK_SIZE], decrypted_cust[BLOCK_SIZE];
 
     char *loc_ptr, *date_ptr, *cust_ptr;
-    char loc[32], date[32], cust[32];
+    char loc[33], date[33], cust[33];
 
     // Finding the pointers to the beginning of each substring
     loc_ptr = strstr(receive_buffer, "LOC>");
@@ -393,16 +393,16 @@ void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {
 
         // Truncating the strings at newline characters if present
         char *newline_loc = strchr(loc, '\n');
-//        if (newline_loc)
-//            *newline_loc = '\0';
+        if (newline_loc)
+            *newline_loc = '\0';
 
         char *newline_date = strchr(date, '\n');
-//        if (newline_date)
-//            *newline_date = '\0';
+        if (newline_date)
+            *newline_date = '\0';
 
         char *newline_cust = strchr(cust, '\n');
- //       if (newline_cust)
- //           *newline_cust = '\0';
+        if (newline_cust)
+            *newline_cust = '\0';
     }
 
     uint8_t loc_bytes[BLOCK_SIZE];
@@ -426,9 +426,38 @@ void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {
     decrypt_line((uint8_t*)date_bytes, decrypted_date);
     decrypt_line((uint8_t*)cust_bytes, decrypted_cust);
 
-    char reconstructed_buffer[114];
-    sprintf(reconstructed_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n", (char*)decrypted_loc, (char*)decrypted_date, (char*)decrypted_cust);    
+/*
+    size_t i = BLOCK_SIZE;
+    while (i > 0 && decrypted_loc[i - 1] == '\0') {
+        i--;
+    }
 
+    uint8_t mod_decrypted_loc[i];
+    memcpy(mod_decrypted_loc, decrypted_loc, i*sizeof(uint8_t));
+
+
+     size_t j = BLOCK_SIZE;
+    while (j > 0 && decrypted_date[j - 1] == '\0') {
+        j--;
+    }
+
+    uint8_t mod_decrypted_date[j];
+    memcpy(mod_decrypted_date, decrypted_date, j*sizeof(uint8_t));
+
+    size_t k = BLOCK_SIZE;
+    while (k > 0 && decrypted_cust[k - 1] == '\0') {
+        k--;
+    }
+
+    uint8_t mod_decrypted_cust[k];
+    memcpy(mod_decrypted_cust, decrypted_cust, k*sizeof(uint8_t));
+
+*/
+
+    char reconstructed_buffer[114];
+    sprintf((char*)reconstructed_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n", (char*)decrypted_loc, (char*)decrypted_date, (char*)
+    decrypted_cust);    
+    
     // Print out attestation data 
     print_info("%s", reconstructed_buffer);
 }

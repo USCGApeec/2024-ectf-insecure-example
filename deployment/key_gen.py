@@ -22,6 +22,9 @@ aes_key = os.urandom(16)
 # Convert the AES key to a hex string
 aes_key_hex = ''.join([f'{byte:02x}' for byte in aes_key])
 
+nonce = int.from_bytes(os.urandom(1), byteorder='big')
+
 # Write the key to global_secrets.h
 with open('global_secrets.h', 'w') as header_file:
     header_file.write(f'#define SECRET "{aes_key_hex}"\n')
+    header_file.write(f'#define NONCE {nonce}\n')

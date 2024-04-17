@@ -375,7 +375,7 @@ void decrypt_line(uint8_t *encrypted_data, uint8_t *decrypted_data) {
 
     //encrypted_data[strcspn(encrypted_data, "\n\r")] ='\0';
 
-    decrypt_sym(encrypted_data, BLOCK_SIZE, key_bytes, decrypted_data);
+    decrypt_sym(encrypted_data, BLOCK_SIZE*4, key_bytes, decrypted_data);
 }
 
 void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {

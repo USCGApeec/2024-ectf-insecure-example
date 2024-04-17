@@ -383,7 +383,7 @@ void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {
     uint8_t decrypted_loc[BLOCK_SIZE], decrypted_date[BLOCK_SIZE], decrypted_cust[BLOCK_SIZE];
 
     char *loc_ptr, *date_ptr, *cust_ptr;
-    char loc[33], date[33], cust[33];
+    char loc[65], date[65], cust[65];
 
     // Finding the pointers to the beginning of each substring
     loc_ptr = strstr(receive_buffer, "LOC>");
@@ -432,7 +432,7 @@ void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {
     decrypt_line((uint8_t*)date_bytes, decrypted_date);
     decrypt_line((uint8_t*)cust_bytes, decrypted_cust);
 
-    char reconstructed_buffer[256];
+    char reconstructed_buffer[255];
     sprintf((char*)reconstructed_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n", (char*)decrypted_loc, (char*)decrypted_date, (char*)decrypted_cust);
 
     /*

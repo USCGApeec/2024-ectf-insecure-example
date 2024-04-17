@@ -432,7 +432,7 @@ void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {
     int i, j = 0;
     int recon_size = strlen(reconstructed_buffer);
     for (i = 0; i < recon_size; i++) {
-        if (reconstructed_buffer[i] != '\0') {
+        if (reconstructed_buffer[i] != '\0' && reconstructed_buffer[i] != '\a') {
             reconstructed_buffer[j++] = reconstructed_buffer[i];
         }
     }

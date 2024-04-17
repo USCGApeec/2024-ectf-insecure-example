@@ -426,42 +426,21 @@ void decrypt_and_print_attestation_data(uint8_t *receive_buffer) {
     decrypt_line((uint8_t*)date_bytes, decrypted_date);
     decrypt_line((uint8_t*)cust_bytes, decrypted_cust);
 
-/*
-    size_t i = BLOCK_SIZE;
-    while (i > 0 && decrypted_loc[i - 1] == '\0') {
+    char reconstructed_buffer[114];
+    sprintf((char*)reconstructed_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n", (char*)decrypted_loc, (char*)decrypted_date, (char*)
+    decrypted_cust); 
+
+    size_t i = sizeof(reconstructed_buffer);
+    while (i > 0 && reconstructed_buffer[i - 1] == '\0') {
         i--;
     }
 
-    uint8_t mod_decrypted_loc[i];
-    memcpy(mod_decrypted_loc, decrypted_loc, i*sizeof(uint8_t));
-
-
-     size_t j = BLOCK_SIZE;
-    while (j > 0 && decrypted_date[j - 1] == '\0') {
-        j--;
-    }
-
-    uint8_t mod_decrypted_date[j];
-    memcpy(mod_decrypted_date, decrypted_date, j*sizeof(uint8_t));
-
-    size_t k = BLOCK_SIZE;
-    while (k > 0 && decrypted_cust[k - 1] == '\0') {
-        k--;
-    }
-
-    uint8_t mod_decrypted_cust[k];
-    memcpy(mod_decrypted_cust, decrypted_cust, k*sizeof(uint8_t));
-
-*/
-
-    char reconstructed_buffer[114];
-    sprintf((char*)reconstructed_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n", (char*)decrypted_loc, (char*)decrypted_date, (char*)
-    decrypted_cust);    
+    uint8_t mod_reconstructed_buffer[i];
+    memcpy(mod_reconstructed_buffer, reconstructed_buffer, i*sizeof(reconstructed_buffer));   
     
     // Print out attestation data 
-    print_info("%s", reconstructed_buffer);
+    print_info("%s", mod_reconstructed_buffer);
 }
-
 
 int attest_component(uint32_t component_id) {
     // Buffers for board link communication
